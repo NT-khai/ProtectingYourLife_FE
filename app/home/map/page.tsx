@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   Building2,
   Navigation,
-  Compass,
   Phone,
   ShieldCheck,
   LocateFixed,
@@ -23,10 +22,12 @@ const HazardLeafletMap = dynamic(
     loading: () => (
       <div className="w-full h-[520px] rounded-3xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center gap-3 text-slate-400">
         <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-medium">Đang tải bản đồ OpenStreetMap & Tín hiệu GPS...</p>
+        <p className="text-sm font-medium">
+          Đang tải bản đồ OpenStreetMap & Tín hiệu GPS...
+        </p>
       </div>
     ),
-  }
+  },
 );
 
 interface UserGPSLocation {
@@ -39,7 +40,9 @@ interface UserGPSLocation {
 export default function HazardMapPage() {
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [activeMarker, setActiveMarker] = useState<number | null>(1);
-  const [userLocation, setUserLocation] = useState<UserGPSLocation | null>(null);
+  const [userLocation, setUserLocation] = useState<UserGPSLocation | null>(
+    null,
+  );
 
   const baseHazardPoints = useMemo(
     () => [
@@ -52,7 +55,8 @@ export default function HazardMapPage() {
         severity: "Cao",
         distance: "1.8 km",
         time: "Cập nhật 20 phút trước",
-        advice: "Không tiếp cận khu vực có khói dày đặc. Người dân xung quanh đóng kín cửa sổ.",
+        advice:
+          "Không tiếp cận khu vực có khói dày đặc. Người dân xung quanh đóng kín cửa sổ.",
         icon: Flame,
         color: "bg-red-500",
         textColor: "text-red-400",
@@ -69,7 +73,8 @@ export default function HazardMapPage() {
         severity: "Trung bình",
         distance: "3.2 km",
         time: "Cập nhật 45 phút trước",
-        advice: "Nước ngập từ 30 - 45cm, các phương tiện xe máy nên chọn lộ trình tránh đường này.",
+        advice:
+          "Nước ngập từ 30 - 45cm, các phương tiện xe máy nên chọn lộ trình tránh đường này.",
         icon: AlertTriangle,
         color: "bg-amber-500",
         textColor: "text-yellow-400",
@@ -103,7 +108,8 @@ export default function HazardMapPage() {
         severity: "An toàn",
         distance: "850 m",
         time: "Mở 24/7",
-        advice: "Điểm tập kết cứu hộ chính của khu vực với kho dự trữ y tế và nhu yếu phẩm.",
+        advice:
+          "Điểm tập kết cứu hộ chính của khu vực với kho dự trữ y tế và nhu yếu phẩm.",
         icon: ShieldCheck,
         color: "bg-emerald-500",
         textColor: "text-emerald-400",
@@ -112,7 +118,7 @@ export default function HazardMapPage() {
         lng: "106.6989",
       },
     ],
-    []
+    [],
   );
 
   // Tính khoảng cách thực tế từ GPS của người dùng đến từng điểm
@@ -124,7 +130,7 @@ export default function HazardMapPage() {
           userLocation.lat,
           userLocation.lng,
           parseFloat(p.lat),
-          parseFloat(p.lng)
+          parseFloat(p.lng),
         );
         calculatedDistance = dist.text;
       }
@@ -140,7 +146,8 @@ export default function HazardMapPage() {
     return p.type === selectedFilter;
   });
 
-  const selectedPoint = hazardPoints.find((p) => p.id === activeMarker) || hazardPoints[0];
+  const selectedPoint =
+    hazardPoints.find((p) => p.id === activeMarker) || hazardPoints[0];
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -151,9 +158,12 @@ export default function HazardMapPage() {
             <Map size={16} />
             Bản Đồ An Toàn Trực Tuyến (Leaflet & OpenStreetMap)
           </div>
-          <h1 className="text-3xl font-extrabold text-white">Bản Đồ Khu Vực Nguy Hiểm & Sơ Tán</h1>
+          <h1 className="text-3xl font-extrabold text-white">
+            Bản Đồ Khu Vực Nguy Hiểm & Sơ Tán
+          </h1>
           <p className="text-slate-300 text-sm mt-1">
-            Tích hợp GPS trực tiếp của bạn cùng dữ liệu không gian OpenStreetMap giúp theo dõi các điểm hỏa hoạn, ngập lụt và trạm cứu hộ an toàn.
+            Tích hợp GPS trực tiếp của bạn cùng dữ liệu không gian OpenStreetMap
+            giúp theo dõi các điểm hỏa hoạn, ngập lụt và trạm cứu hộ an toàn.
           </p>
         </div>
 
@@ -202,7 +212,8 @@ export default function HazardMapPage() {
                   <>
                     Vị trí thực tế GPS của bạn:{" "}
                     <strong className="text-white font-mono">
-                      {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                      {userLocation.lat.toFixed(4)},{" "}
+                      {userLocation.lng.toFixed(4)}
                     </strong>{" "}
                     (Sai số ~{Math.round(userLocation.accuracy)}m)
                   </>
@@ -212,8 +223,12 @@ export default function HazardMapPage() {
               </span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-red-400 font-semibold">• 3 Điểm nguy cơ</span>
-              <span className="text-emerald-400 font-semibold">• 1 Trạm an toàn</span>
+              <span className="text-red-400 font-semibold">
+                • 3 Điểm nguy cơ
+              </span>
+              <span className="text-emerald-400 font-semibold">
+                • 1 Trạm an toàn
+              </span>
             </div>
           </div>
         </div>
@@ -226,7 +241,9 @@ export default function HazardMapPage() {
             </span>
 
             <div className="mt-3 flex items-start gap-3">
-              <div className={`p-3 rounded-2xl ${selectedPoint.color} text-white shrink-0 shadow-lg`}>
+              <div
+                className={`p-3 rounded-2xl ${selectedPoint.color} text-white shrink-0 shadow-lg`}
+              >
                 <selectedPoint.icon size={24} />
               </div>
               <div>
@@ -244,10 +261,14 @@ export default function HazardMapPage() {
             <div className="mt-4 space-y-2.5 text-xs text-slate-300 border-t border-slate-800 pt-4">
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Vị trí:</span>
-                <span className="font-semibold text-white text-right">{selectedPoint.location}</span>
+                <span className="font-semibold text-white text-right">
+                  {selectedPoint.location}
+                </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-400">Khoảng cách từ GPS của bạn:</span>
+                <span className="text-slate-400">
+                  Khoảng cách từ GPS của bạn:
+                </span>
                 <span className="font-bold text-yellow-400 text-sm">
                   {selectedPoint.calculatedDistance || selectedPoint.distance}
                 </span>
@@ -265,8 +286,12 @@ export default function HazardMapPage() {
             </div>
 
             <div className="mt-4 p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-xs">
-              <p className="text-yellow-400 font-semibold mb-1">Khuyến nghị an toàn:</p>
-              <p className="text-slate-300 leading-relaxed">{selectedPoint.advice}</p>
+              <p className="text-yellow-400 font-semibold mb-1">
+                Khuyến nghị an toàn:
+              </p>
+              <p className="text-slate-300 leading-relaxed">
+                {selectedPoint.advice}
+              </p>
             </div>
 
             <div className="mt-5 flex gap-2">
@@ -300,8 +325,12 @@ export default function HazardMapPage() {
             <div className="space-y-2 text-xs">
               <div className="p-2.5 rounded-xl bg-slate-800/50 flex items-center justify-between border border-slate-800">
                 <div>
-                  <p className="font-semibold text-white">Bệnh Viện Chợ Rẫy (Cấp Cứu)</p>
-                  <p className="text-[10px] text-slate-400">Cách 2.1km • 201B Nguyễn Chí Thanh</p>
+                  <p className="font-semibold text-white">
+                    Bệnh Viện Chợ Rẫy (Cấp Cứu)
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    Cách 2.1km • 201B Nguyễn Chí Thanh
+                  </p>
                 </div>
                 <a
                   href="tel:02838554137"
@@ -313,8 +342,12 @@ export default function HazardMapPage() {
 
               <div className="p-2.5 rounded-xl bg-slate-800/50 flex items-center justify-between border border-slate-800">
                 <div>
-                  <p className="font-semibold text-white">Đội Cảnh Sát PCCC Quận 1</p>
-                  <p className="text-[10px] text-slate-400">Cách 1.1km • Trực 24/7</p>
+                  <p className="font-semibold text-white">
+                    Đội Cảnh Sát PCCC Quận 1
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    Cách 1.1km • Trực 24/7
+                  </p>
                 </div>
                 <a
                   href="tel:114"
