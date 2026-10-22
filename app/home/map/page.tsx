@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import {
   Map,
@@ -11,8 +11,10 @@ import {
   Phone,
   ShieldCheck,
   LocateFixed,
+  Zap,
 } from "lucide-react";
 import { calculateDistance } from "@/app/lib/nominatim";
+import { incidentApi, IncidentData } from "@/app/lib/api";
 
 // Dynamic import Leaflet component with ssr: false
 const HazardLeafletMap = dynamic(
@@ -40,12 +42,19 @@ interface UserGPSLocation {
 export default function HazardMapPage() {
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [activeMarker, setActiveMarker] = useState<number | null>(1);
-  const [userLocation, setUserLocation] = useState<UserGPSLocation | null>(
-    null,
-  );
+  const [userLocation, setUserLocation] = useState<UserGPSLocation | null>(null);
+  const [dbIncidents, setDbIncidents] = useState<IncidentData[]>([]);
 
-  const baseHazardPoints = useMemo(
-    () => [
+  useEffect(() => {
+    incidentApi
+      .getAll()
+      .then((data) => setDbIncidents(data || []))
+      .catch((err) => console.error("Lỗi tải bản đồ sự cố:", err));
+  }, []);
+
+  const baseHazardPoints = useMemo(() => {
+    // Default reference shelters & sample hazards
+    const defaults = [
       {
         id: 1,
         title: "Cảnh báo cháy cỏ ven sông",
@@ -83,23 +92,6 @@ export default function HazardMapPage() {
         lng: "106.7320",
       },
       {
-        id: 3,
-        title: "Công trình thi công cầu vượt",
-        type: "construction",
-        typeName: "Cảnh báo giao thông",
-        location: "Nút giao An Phú, TP. Thủ Đức",
-        severity: "Chú ý",
-        distance: "4.5 km",
-        time: "Hôm nay",
-        advice: "Mặt đường hẹp, rào chắn công trình hạn chế tầm nhìn về đêm.",
-        icon: Building2,
-        color: "bg-blue-500",
-        textColor: "text-blue-400",
-        borderColor: "border-blue-500",
-        lat: "10.7980",
-        lng: "106.7580",
-      },
-      {
         id: 4,
         title: "Điểm sơ tán khẩn cấp: SVĐ Hoa Lư",
         type: "shelter",
@@ -117,9 +109,35 @@ export default function HazardMapPage() {
         lat: "10.7876",
         lng: "106.6989",
       },
-    ],
-    [],
-  );
+    ];
+
+    // Real DB Incidents converted to HazardPoints
+    const dbPoints = dbIncidents.map((inc) => {
+      const isUrgent = inc.mucDo === "Cap bach";
+      const isFire = inc.loaiSuCo?.toLowerCase().includes("hỏa") || inc.loaiSuCo?.toLowerCase().includes("cháy");
+      const isFlood = inc.loaiSuCo?.toLowerCase().includes("ngập") || inc.loaiSuCo?.toLowerCase().includes("triều");
+
+      return {
+        id: 1000 + (inc.id || 0),
+        title: inc.tieuDe,
+        type: isFire ? "fire" : isFlood ? "flood" : "construction",
+        typeName: inc.loaiSuCo,
+        location: inc.diaChi,
+        severity: isUrgent ? "Cấp bách" : inc.mucDo === "Trung binh" ? "Trung bình" : "Thấp",
+        distance: "~",
+        time: inc.ngayTao ? new Date(inc.ngayTao).toLocaleTimeString("vi-VN") : "Gần đây",
+        advice: inc.moTaChiTiet || "Sự cố được tiếp nhận trực tiếp từ cộng đồng bảo hộ.",
+        icon: isUrgent ? Zap : isFire ? Flame : AlertTriangle,
+        color: isUrgent ? "bg-red-600" : isFlood ? "bg-cyan-500" : "bg-amber-500",
+        textColor: isUrgent ? "text-red-400" : "text-yellow-400",
+        borderColor: isUrgent ? "border-red-500" : "border-yellow-500",
+        lat: String(inc.latitude),
+        lng: String(inc.longitude),
+      };
+    });
+
+    return [...dbPoints, ...defaults];
+  }, [dbIncidents]);
 
   // Tính khoảng cách thực tế từ GPS của người dùng đến từng điểm
   const hazardPoints = useMemo(() => {
@@ -162,8 +180,7 @@ export default function HazardMapPage() {
             Bản Đồ Khu Vực Nguy Hiểm & Sơ Tán
           </h1>
           <p className="text-slate-300 text-sm mt-1">
-            Tích hợp GPS trực tiếp của bạn cùng dữ liệu không gian OpenStreetMap
-            giúp theo dõi các điểm hỏa hoạn, ngập lụt và trạm cứu hộ an toàn.
+            Tích hợp GPS trực tiếp của bạn cùng dữ liệu sự cố thời gian thực từ cơ sở dữ liệu giúp theo dõi các điểm hỏa hoạn, ngập lụt và trạm cứu hộ an toàn.
           </p>
         </div>
 
@@ -224,10 +241,10 @@ export default function HazardMapPage() {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-red-400 font-semibold">
-                • 3 Điểm nguy cơ
+                • {hazardPoints.filter(p => p.type !== "shelter").length} Điểm nguy cơ
               </span>
               <span className="text-emerald-400 font-semibold">
-                • 1 Trạm an toàn
+                • {hazardPoints.filter(p => p.type === "shelter").length} Trạm an toàn
               </span>
             </div>
           </div>
@@ -235,129 +252,61 @@ export default function HazardMapPage() {
 
         {/* Selected Marker Detail Card (1 col) */}
         <div className="space-y-4">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider">
-              Chi Tiết Điểm Đang Chọn
-            </span>
+          {selectedPoint && (
+            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl">
+              <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider">
+                Chi Tiết Điểm Đang Chọn
+              </span>
 
-            <div className="mt-3 flex items-start gap-3">
-              <div
-                className={`p-3 rounded-2xl ${selectedPoint.color} text-white shrink-0 shadow-lg`}
-              >
-                <selectedPoint.icon size={24} />
-              </div>
-              <div>
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${selectedPoint.textColor} ${selectedPoint.borderColor} bg-slate-950`}
+              <div className="mt-3 flex items-start gap-3">
+                <div
+                  className={`p-3 rounded-2xl ${selectedPoint.color} text-white shrink-0 shadow-lg`}
                 >
-                  {selectedPoint.typeName}
-                </span>
-                <h3 className="text-lg font-bold text-white mt-1 leading-snug">
-                  {selectedPoint.title}
-                </h3>
+                  <selectedPoint.icon size={24} />
+                </div>
+                <div>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${selectedPoint.textColor} ${selectedPoint.borderColor} bg-slate-950`}
+                  >
+                    {selectedPoint.typeName}
+                  </span>
+                  <h3 className="text-lg font-bold text-white mt-1 leading-snug">
+                    {selectedPoint.title}
+                  </h3>
+                </div>
               </div>
-            </div>
 
-            <div className="mt-4 space-y-2.5 text-xs text-slate-300 border-t border-slate-800 pt-4">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Vị trí:</span>
-                <span className="font-semibold text-white text-right">
-                  {selectedPoint.location}
-                </span>
+              <div className="mt-4 pt-4 border-t border-slate-800 space-y-2 text-xs">
+                <div className="flex justify-between text-slate-300">
+                  <span className="text-slate-400">Vị trí:</span>
+                  <span className="font-medium text-right max-w-[200px]">{selectedPoint.location}</span>
+                </div>
+                <div className="flex justify-between text-slate-300">
+                  <span className="text-slate-400">Mức độ:</span>
+                  <span className="font-bold text-red-400">{selectedPoint.severity}</span>
+                </div>
+                <div className="flex justify-between text-slate-300">
+                  <span className="text-slate-400">Khoảng cách:</span>
+                  <span className="font-mono text-cyan-400">{selectedPoint.calculatedDistance || selectedPoint.distance}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">
-                  Khoảng cách từ GPS của bạn:
-                </span>
-                <span className="font-bold text-yellow-400 text-sm">
-                  {selectedPoint.calculatedDistance || selectedPoint.distance}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Cập nhật:</span>
-                <span>{selectedPoint.time}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Tọa độ OpenStreetMap:</span>
-                <span className="font-mono text-[11px] text-cyan-300">
-                  {selectedPoint.lat}, {selectedPoint.lng}
-                </span>
-              </div>
-            </div>
 
-            <div className="mt-4 p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-xs">
-              <p className="text-yellow-400 font-semibold mb-1">
-                Khuyến nghị an toàn:
-              </p>
-              <p className="text-slate-300 leading-relaxed">
+              <div className="mt-4 p-3 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-300">
+                <span className="text-yellow-400 font-bold">Khuyến cáo: </span>
                 {selectedPoint.advice}
-              </p>
-            </div>
+              </div>
 
-            <div className="mt-5 flex gap-2">
               <a
                 href={`https://www.google.com/maps/dir/?api=1&destination=${selectedPoint.lat},${selectedPoint.lng}`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex-1 py-2.5 px-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-lg shadow-red-950/40"
+                className="mt-4 w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition"
               >
                 <Navigation size={14} />
-                Chỉ Đường Thoát Hiểm
-              </a>
-              <a
-                href={`https://www.openstreetmap.org/?mlat=${selectedPoint.lat}&mlon=${selectedPoint.lng}#map=16/${selectedPoint.lat}/${selectedPoint.lng}`}
-                target="_blank"
-                rel="noreferrer"
-                className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1 transition"
-                title="Mở trên OpenStreetMap"
-              >
-                OSM
+                <span>Chỉ đường thoát nạn (Google Maps)</span>
               </a>
             </div>
-          </div>
-
-          {/* Quick Safe Shelters List */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl">
-            <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-              <Building2 size={16} className="text-emerald-400" />
-              Cơ Sở Cứu Hộ Gần Nhất
-            </h4>
-            <div className="space-y-2 text-xs">
-              <div className="p-2.5 rounded-xl bg-slate-800/50 flex items-center justify-between border border-slate-800">
-                <div>
-                  <p className="font-semibold text-white">
-                    Bệnh Viện Chợ Rẫy (Cấp Cứu)
-                  </p>
-                  <p className="text-[10px] text-slate-400">
-                    Cách 2.1km • 201B Nguyễn Chí Thanh
-                  </p>
-                </div>
-                <a
-                  href="tel:02838554137"
-                  className="p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition"
-                >
-                  <Phone size={12} />
-                </a>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-800/50 flex items-center justify-between border border-slate-800">
-                <div>
-                  <p className="font-semibold text-white">
-                    Đội Cảnh Sát PCCC Quận 1
-                  </p>
-                  <p className="text-[10px] text-slate-400">
-                    Cách 1.1km • Trực 24/7
-                  </p>
-                </div>
-                <a
-                  href="tel:114"
-                  className="p-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition"
-                >
-                  <Phone size={12} />
-                </a>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

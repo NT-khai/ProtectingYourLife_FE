@@ -1,17 +1,17 @@
+"use client";
+
 import HomeSidebar from "../components/HomeSidebar";
 import Link from "next/link";
-import { PhoneCall, Globe, Bell } from "lucide-react";
-
-export const metadata = {
-  title: "Dashboard | Protecting Your Life",
-  description: "Bảng điều khiển quản lý an toàn và ứng phó khẩn cấp",
-};
+import { PhoneCall, Globe, Bell, ShieldAlert } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 export default function HomeLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { user, isAdmin } = useAuth();
+
   return (
     <div className="flex min-h-screen bg-slate-900 text-slate-100">
       {/* Sidebar */}
@@ -24,8 +24,17 @@ export default function HomeLayout({
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Hệ thống hoạt động bình thường
+              Hệ thống trực thám an toàn hoạt động
             </span>
+            {isAdmin && (
+              <Link
+                href="/home/admin"
+                className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-950 text-red-400 border border-red-700 uppercase"
+              >
+                <ShieldAlert size={12} />
+                <span>Admin Panel</span>
+              </Link>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -48,27 +57,25 @@ export default function HomeLayout({
               <span className="hidden md:inline">Website</span>
             </Link>
 
-            {/* Notifications */}
-            <button
-              type="button"
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 relative transition"
-              title="Thông báo"
-            >
-              <Bell size={16} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500"></span>
-            </button>
-
             {/* User Profile Mini Badge */}
             <Link
               href="/home/profile"
               className="flex items-center gap-2 pl-2 border-l border-slate-800 hover:opacity-90 transition"
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-red-600 to-yellow-500 flex items-center justify-center font-bold text-xs text-white shadow-sm">
-                AD
+                {user?.hovaten
+                  ? user.hovaten.charAt(0).toUpperCase()
+                  : user?.email
+                  ? user.email.charAt(0).toUpperCase()
+                  : "U"}
               </div>
               <div className="hidden lg:block text-left">
-                <p className="text-xs font-semibold leading-tight text-white">Thành viên</p>
-                <p className="text-[10px] text-slate-400 leading-tight">Cấp độ 2 • Đã xác minh</p>
+                <p className="text-xs font-semibold leading-tight text-white">
+                  {user?.hovaten || user?.email || "Người dùng"}
+                </p>
+                <p className="text-[10px] text-slate-400 leading-tight">
+                  Vai trò: {user?.role || "user"}
+                </p>
               </div>
             </Link>
           </div>
