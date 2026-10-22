@@ -1,5 +1,6 @@
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://protectingyourlife-be-nestjs.onrender.com";
 
 interface FetchOptions extends RequestInit {
   data?: any;
@@ -7,7 +8,7 @@ interface FetchOptions extends RequestInit {
 
 export async function apiRequest<T = any>(
   endpoint: string,
-  options: FetchOptions = {}
+  options: FetchOptions = {},
 ): Promise<T> {
   const { data, headers, ...customConfig } = options;
 
@@ -162,7 +163,7 @@ export const userApi = {
 
 // ----------------- FILE UPLOAD API -----------------
 export async function uploadImage(
-  file: File
+  file: File,
 ): Promise<{ success: boolean; url: string; filename: string }> {
   const formData = new FormData();
   formData.append("file", file);
