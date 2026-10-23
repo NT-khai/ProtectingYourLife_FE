@@ -1,129 +1,83 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://protectingyourlife-be-nestjs.onrender.com";
+// =============================================================================
+// API client
+// =============================================================================
 
-interface FetchOptions extends RequestInit {
-  data?: any;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+
+// ----------------- CORE -----------------
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly payload?: unknown,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
 }
 
-export async function apiRequest<T = any>(
-  endpoint: string,
-  options: FetchOptions = {},
-): Promise<T> {
-  const { data, headers, ...customConfig } = options;
+interface RequestOptions extends Omit<RequestInit, "body"> {
+  /** Dữ liệu JSON gửi đi (tự stringify + set Content-Type) */
+  data?: unknown;
+  /** Dùng cho FormData / Blob... (không set Content-Type để trình duyệt tự xử lý) */
+  body?: BodyInit | null;
+}
 
-  const config: RequestInit = {
-    ...customConfig,
-    credentials: "include", // send cookies
-    headers: {
-      ...(data ? { "Content-Type": "application/json" } : {}),
-      ...(headers || {}),
-    },
-  };
-
-  if (data) {
-    config.body = JSON.stringify(data);
+/** NestJS có thể trả `message` là string hoặc mảng (validation errors) */
+function extractErrorMessage(payload: unknown, fallback: string): string {
+  if (payload && typeof payload === "object") {
+    const { message, error } = payload as Record<string, unknown>;
+    const raw = message ?? error;
+    if (Array.isArray(raw)) return raw.join(", ");
+    if (typeof raw === "string" && raw) return raw;
   }
+  return fallback;
+}
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+async function parseJsonSafe(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return undefined;
+  }
+}
+
+export async function apiRequest<T = unknown>(
+  endpoint: string,
+  { data, body, headers, ...rest }: RequestOptions = {},
+): Promise<T> {
+  const hasJsonBody = data !== undefined;
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...rest,
+    credentials: "include", // gửi cookie
+    headers: {
+      ...(hasJsonBody ? { "Content-Type": "application/json" } : {}),
+      ...headers,
+    },
+    body: hasJsonBody ? JSON.stringify(data) : body,
+  });
 
   if (!response.ok) {
-    let errorMsg = `Lỗi máy chủ (${response.status})`;
-    try {
-      const errJson = await response.json();
-      errorMsg = errJson.message || errJson.error || errorMsg;
-    } catch {
-      // ignore
-    }
-    throw new Error(errorMsg);
+    const payload = await parseJsonSafe(response);
+    throw new ApiError(
+      extractErrorMessage(payload, `Lỗi máy chủ (${response.status})`),
+      response.status,
+      payload,
+    );
   }
 
-  // Handle 204 No Content
+  // 204 No Content
   if (response.status === 204) {
-    return null as unknown as T;
+    return undefined as T;
   }
 
-  return response.json();
+  return response.json() as Promise<T>;
 }
 
-// ----------------- AUTH APIS -----------------
-export const authApi = {
-  login: (data: { email: string; matkhau: string }) =>
-    apiRequest("/auth/login", { method: "POST", data }),
+// ----------------- USER TYPES -----------------
 
-  register: (data: { hovaten: string; email: string; matkhau: string }) =>
-    apiRequest("/auth/register", { method: "POST", data }),
-
-  logout: () => apiRequest("/auth/logout", { method: "POST" }),
-
-  getMe: () => apiRequest("/auth/me", { method: "GET" }),
-};
-
-// ----------------- INCIDENT APIS -----------------
-export interface IncidentData {
-  id?: number;
-  userId?: number;
-  loaiSuCo: string;
-  mucDo: string; // 'Cap bach' | 'Trung binh' | 'Thap'
-  tieuDe: string;
-  latitude: number;
-  longitude: number;
-  diaChi: string;
-  moTaChiTiet?: string;
-  imageUrl?: string;
-  trangThai?: string; // 'Cho xu ly' | 'Dang xu ly' | 'Da xu ly'
-  ngayTao?: string;
-}
-
-export const incidentApi = {
-  getAll: (): Promise<IncidentData[]> =>
-    apiRequest("/api/incidents", { method: "GET" }),
-
-  getStats: () => apiRequest("/api/incidents/stats", { method: "GET" }),
-
-  getMyReports: (): Promise<IncidentData[]> =>
-    apiRequest("/api/incidents/my-reports", { method: "GET" }),
-
-  getById: (id: number): Promise<IncidentData> =>
-    apiRequest(`/api/incidents/${id}`, { method: "GET" }),
-
-  create: (data: IncidentData): Promise<IncidentData> =>
-    apiRequest("/api/incidents", { method: "POST", data }),
-
-  updateStatus: (id: number, status: string): Promise<IncidentData> =>
-    apiRequest(`/api/incidents/${id}/status`, {
-      method: "PATCH",
-      data: { status },
-    }),
-
-  approve: (id: number): Promise<IncidentData> =>
-    apiRequest(`/api/incidents/${id}/approve`, { method: "PATCH" }),
-
-  delete: (id: number) =>
-    apiRequest(`/api/incidents/${id}`, { method: "DELETE" }),
-};
-
-// ----------------- FEEDBACK APIS -----------------
-export interface FeedbackData {
-  id?: number;
-  hovaten: string;
-  email: string;
-  content: string;
-  createdAt?: string;
-}
-
-export const feedbackApi = {
-  create: (data: { hovaten: string; email: string; content: string }) =>
-    apiRequest("/api/feedback", { method: "POST", data }),
-
-  getAll: (): Promise<FeedbackData[]> =>
-    apiRequest("/api/feedback", { method: "GET" }),
-
-  delete: (id: number) =>
-    apiRequest(`/api/feedback/${id}`, { method: "DELETE" }),
-};
-
-// ----------------- USER & PROFILE APIS -----------------
 export interface UserData {
   id: number;
   hovaten: string;
@@ -142,48 +96,135 @@ export interface UserProfileData {
   avatar?: string;
 }
 
-export const userApi = {
-  getAll: (): Promise<UserData[]> =>
-    apiRequest("/api/users", { method: "GET" }),
+// ----------------- AUTH APIS -----------------
 
-  updateRole: (id: number, role: string) =>
-    apiRequest(`/api/users/${id}/role`, {
+export interface LoginPayload {
+  email: string;
+  matkhau: string;
+}
+
+export interface RegisterPayload extends LoginPayload {
+  hovaten: string;
+}
+
+export const authApi = {
+  login: (data: LoginPayload) =>
+    apiRequest("/auth/login", { method: "POST", data }),
+
+  register: (data: RegisterPayload) =>
+    apiRequest("/auth/register", { method: "POST", data }),
+
+  logout: () => apiRequest<void>("/auth/logout", { method: "POST" }),
+
+  getMe: () => apiRequest<UserData>("/auth/me"),
+};
+
+// ----------------- INCIDENT APIS -----------------
+
+export type IncidentSeverity = "Cap bach" | "Trung binh" | "Thap";
+export type IncidentStatus = "Cho xu ly" | "Dang xu ly" | "Da xu ly";
+
+export interface IncidentData {
+  id?: number;
+  userId?: number;
+  loaiSuCo: string;
+  mucDo: IncidentSeverity;
+  tieuDe: string;
+  latitude: number;
+  longitude: number;
+  diaChi: string;
+  moTaChiTiet?: string;
+  imageUrl?: string;
+  trangThai?: IncidentStatus;
+  ngayTao?: string;
+}
+
+export const incidentApi = {
+  getAll: () => apiRequest<IncidentData[]>("/api/incidents"),
+
+  getStats: () => apiRequest("/api/incidents/stats"),
+
+  getMyReports: () => apiRequest<IncidentData[]>("/api/incidents/my-reports"),
+
+  getById: (id: number) => apiRequest<IncidentData>(`/api/incidents/${id}`),
+
+  create: (data: IncidentData) =>
+    apiRequest<IncidentData>("/api/incidents", { method: "POST", data }),
+
+  updateStatus: (id: number, status: IncidentStatus) =>
+    apiRequest<IncidentData>(`/api/incidents/${id}/status`, {
       method: "PATCH",
-      data: { role },
+      data: { status },
     }),
 
-  delete: (id: number) => apiRequest(`/api/users/${id}`, { method: "DELETE" }),
+  approve: (id: number) =>
+    apiRequest<IncidentData>(`/api/incidents/${id}/approve`, {
+      method: "PATCH",
+    }),
 
-  getMyProfile: (): Promise<UserProfileData> =>
-    apiRequest("/api/users/profile/me", { method: "GET" }),
+  delete: (id: number) =>
+    apiRequest<void>(`/api/incidents/${id}`, { method: "DELETE" }),
+};
 
-  updateMyProfile: (data: Partial<UserProfileData>): Promise<UserProfileData> =>
-    apiRequest("/api/users/profile/me", { method: "PUT", data }),
+// ----------------- FEEDBACK APIS -----------------
+
+export interface FeedbackData {
+  id?: number;
+  hovaten: string;
+  email: string;
+  content: string;
+  createdAt?: string;
+}
+
+export type CreateFeedbackPayload = Pick<
+  FeedbackData,
+  "hovaten" | "email" | "content"
+>;
+
+export const feedbackApi = {
+  create: (data: CreateFeedbackPayload) =>
+    apiRequest("/api/feedback", { method: "POST", data }),
+
+  getAll: () => apiRequest<FeedbackData[]>("/api/feedback"),
+
+  delete: (id: number) =>
+    apiRequest<void>(`/api/feedback/${id}`, { method: "DELETE" }),
+};
+
+// ----------------- USER & PROFILE APIS -----------------
+
+export const userApi = {
+  getAll: () => apiRequest<UserData[]>("/api/users"),
+
+  updateRole: (id: number, role: string) =>
+    apiRequest(`/api/users/${id}/role`, { method: "PATCH", data: { role } }),
+
+  delete: (id: number) =>
+    apiRequest<void>(`/api/users/${id}`, { method: "DELETE" }),
+
+  getMyProfile: () => apiRequest<UserProfileData>("/api/users/profile/me"),
+
+  updateMyProfile: (data: Partial<UserProfileData>) =>
+    apiRequest<UserProfileData>("/api/users/profile/me", {
+      method: "PUT",
+      data,
+    }),
 };
 
 // ----------------- FILE UPLOAD API -----------------
-export async function uploadImage(
-  file: File,
-): Promise<{ success: boolean; url: string; filename: string }> {
+
+export interface UploadResult {
+  success: boolean;
+  url: string;
+  filename: string;
+}
+
+export function uploadImage(file: File): Promise<UploadResult> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(`${API_BASE_URL}/api/upload`, {
+  return apiRequest<UploadResult>("/api/upload", {
     method: "POST",
-    credentials: "include",
     body: formData,
   });
-
-  if (!response.ok) {
-    let errorMsg = "Tải ảnh thất bại";
-    try {
-      const err = await response.json();
-      errorMsg = err.message || errorMsg;
-    } catch {
-      // ignore
-    }
-    throw new Error(errorMsg);
-  }
-
-  return response.json();
 }
