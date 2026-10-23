@@ -107,16 +107,21 @@ export interface RegisterPayload extends LoginPayload {
   hovaten: string;
 }
 
+export interface AuthResponse {
+  message?: string;
+  user?: UserData;
+}
+
 export const authApi = {
   login: (data: LoginPayload) =>
-    apiRequest("/auth/login", { method: "POST", data }),
+    apiRequest<AuthResponse>("/auth/login", { method: "POST", data }),
 
   register: (data: RegisterPayload) =>
-    apiRequest("/auth/register", { method: "POST", data }),
+    apiRequest<AuthResponse>("/auth/register", { method: "POST", data }),
 
   logout: () => apiRequest<void>("/auth/logout", { method: "POST" }),
 
-  getMe: () => apiRequest<UserData>("/auth/me"),
+  getMe: () => apiRequest<AuthResponse>("/auth/me"),
 };
 
 // ----------------- INCIDENT APIS -----------------

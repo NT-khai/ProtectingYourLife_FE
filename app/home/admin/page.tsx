@@ -22,6 +22,7 @@ import {
   feedbackApi,
   userApi,
   IncidentData,
+  IncidentStatus,
   FeedbackData,
   UserData,
 } from "@/app/lib/api";
@@ -31,9 +32,9 @@ export default function AdminPage() {
   const { user, loading: authLoading, isAdmin } = useAuth();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<"incidents" | "feedback" | "users">(
-    "incidents"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "incidents" | "feedback" | "users"
+  >("incidents");
   const [incidents, setIncidents] = useState<IncidentData[]>([]);
   const [feedbacks, setFeedbacks] = useState<FeedbackData[]>([]);
   const [users, setUsers] = useState<UserData[]>([]);
@@ -47,7 +48,6 @@ export default function AdminPage() {
 
   const loadData = async () => {
     try {
-      setLoading(true);
       const [incData, fbData, uData] = await Promise.all([
         incidentApi.getAll().catch(() => []),
         feedbackApi.getAll().catch(() => []),
@@ -65,7 +65,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!authLoading && isAdmin) {
-      loadData();
+      void Promise.resolve().then(() => loadData());
     }
   }, [authLoading, isAdmin]);
 
@@ -86,9 +86,13 @@ export default function AdminPage() {
           <div className="w-16 h-16 rounded-2xl bg-red-950/80 border border-red-700 text-red-500 flex items-center justify-center mx-auto shadow-lg shadow-red-950/50">
             <Lock size={32} />
           </div>
-          <h2 className="text-2xl font-black text-white">Quyền Truy Cập Bị Từ Chối</h2>
+          <h2 className="text-2xl font-black text-white">
+            Quyền Truy Cập Bị Từ Chối
+          </h2>
           <p className="text-sm text-slate-400 leading-relaxed">
-            Trang Quản trị hệ thống này chỉ dành riêng cho tài khoản có vai trò <strong>Quản trị viên (Admin)</strong>. Tài khoản hiện tại của bạn là <strong>{user?.role || "user"}</strong>.
+            Trang Quản trị hệ thống này chỉ dành riêng cho tài khoản có vai trò{" "}
+            <strong>Quản trị viên (Admin)</strong>. Tài khoản hiện tại của bạn
+            là <strong>{user?.role || "user"}</strong>.
           </p>
           <div className="pt-2">
             <Link
@@ -112,11 +116,13 @@ export default function AdminPage() {
   const handleApproveUrgent = async (id: number) => {
     try {
       await incidentApi.approve(id);
-      showNotification(`⚡ Đã duyệt ngay sự cố #${id}! Chuyển sang trạng thái Đang xử lý.`);
+      showNotification(
+        `⚡ Đã duyệt ngay sự cố #${id}! Chuyển sang trạng thái Đang xử lý.`,
+      );
       setIncidents((prev) =>
         prev.map((item) =>
-          item.id === id ? { ...item, trangThai: "Dang xu ly" } : item
-        )
+          item.id === id ? { ...item, trangThai: "Dang xu ly" } : item,
+        ),
       );
     } catch (err: any) {
       alert("Lỗi khi duyệt: " + err.message);
@@ -124,12 +130,14 @@ export default function AdminPage() {
   };
 
   // Update Status
-  const handleUpdateStatus = async (id: number, status: string) => {
+  const handleUpdateStatus = async (id: number, status: IncidentStatus) => {
     try {
       await incidentApi.updateStatus(id, status);
       showNotification(`Đã chuyển trạng thái sự cố #${id} sang "${status}"`);
       setIncidents((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, trangThai: status } : item))
+        prev.map((item) =>
+          item.id === id ? { ...item, trangThai: status } : item,
+        ),
       );
     } catch (err: any) {
       alert("Lỗi cập nhật trạng thái: " + err.message);
@@ -165,7 +173,7 @@ export default function AdminPage() {
     const newRole = u.role === "admin" ? "user" : "admin";
     if (
       !confirm(
-        `Chuyển quyền tài khoản ${u.email} sang vai trò "${newRole.toUpperCase()}"?`
+        `Chuyển quyền tài khoản ${u.email} sang vai trò "${newRole.toUpperCase()}"?`,
       )
     )
       return;
@@ -174,8 +182,8 @@ export default function AdminPage() {
       showNotification(`Đã cập nhật quyền của ${u.email} thành ${newRole}`);
       setUsers((prev) =>
         prev.map((item) =>
-          item.id === u.id ? { ...item, role: newRole } : item
-        )
+          item.id === u.id ? { ...item, role: newRole } : item,
+        ),
       );
     } catch (err: any) {
       alert("Lỗi cập nhật vai trò: " + err.message);
@@ -197,11 +205,15 @@ export default function AdminPage() {
   // Stats calculation
   const totalIncidents = incidents.length;
   const urgentCount = incidents.filter((i) => i.mucDo === "Cap bach").length;
-  const pendingCount = incidents.filter((i) => i.trangThai === "Cho xu ly").length;
-  const inProgressCount = incidents.filter(
-    (i) => i.trangThai === "Dang xu ly"
+  const pendingCount = incidents.filter(
+    (i) => i.trangThai === "Cho xu ly",
   ).length;
-  const resolvedCount = incidents.filter((i) => i.trangThai === "Da xu ly").length;
+  const inProgressCount = incidents.filter(
+    (i) => i.trangThai === "Dang xu ly",
+  ).length;
+  const resolvedCount = incidents.filter(
+    (i) => i.trangThai === "Da xu ly",
+  ).length;
 
   // Filtered incidents
   const filteredIncidents = incidents.filter((i) => {
@@ -219,7 +231,7 @@ export default function AdminPage() {
 
   // Urgent list needing attention
   const urgentPendingList = incidents.filter(
-    (i) => i.mucDo === "Cap bach" && i.trangThai === "Cho xu ly"
+    (i) => i.mucDo === "Cap bach" && i.trangThai === "Cho xu ly",
   );
 
   return (
@@ -235,7 +247,8 @@ export default function AdminPage() {
             Bảng Quản Trị Hệ Thống (Admin Panel)
           </h1>
           <p className="text-slate-400 text-sm mt-1">
-            Quản lý và tiếp nhận sự cố cộng đồng, điều phối cứu nạn khẩn cấp, xem phản hồi và phân quyền tài khoản.
+            Quản lý và tiếp nhận sự cố cộng đồng, điều phối cứu nạn khẩn cấp,
+            xem phản hồi và phân quyền tài khoản.
           </p>
         </div>
 
@@ -260,7 +273,9 @@ export default function AdminPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
           <p className="text-xs text-slate-400 font-medium">Tổng sự cố</p>
-          <p className="text-2xl font-black text-white mt-1">{totalIncidents}</p>
+          <p className="text-2xl font-black text-white mt-1">
+            {totalIncidents}
+          </p>
         </div>
 
         <div className="p-4 rounded-2xl bg-red-950/40 border border-red-800/60 shadow-lg shadow-red-950/30">
@@ -273,22 +288,30 @@ export default function AdminPage() {
 
         <div className="p-4 rounded-2xl bg-slate-900 border border-amber-900/40">
           <p className="text-xs text-amber-400 font-medium">Chờ xử lý</p>
-          <p className="text-2xl font-black text-amber-300 mt-1">{pendingCount}</p>
+          <p className="text-2xl font-black text-amber-300 mt-1">
+            {pendingCount}
+          </p>
         </div>
 
         <div className="p-4 rounded-2xl bg-slate-900 border border-cyan-900/40">
           <p className="text-xs text-cyan-400 font-medium">Đang xử lý</p>
-          <p className="text-2xl font-black text-cyan-300 mt-1">{inProgressCount}</p>
+          <p className="text-2xl font-black text-cyan-300 mt-1">
+            {inProgressCount}
+          </p>
         </div>
 
         <div className="p-4 rounded-2xl bg-slate-900 border border-emerald-900/40">
           <p className="text-xs text-emerald-400 font-medium">Đã giải quyết</p>
-          <p className="text-2xl font-black text-emerald-300 mt-1">{resolvedCount}</p>
+          <p className="text-2xl font-black text-emerald-300 mt-1">
+            {resolvedCount}
+          </p>
         </div>
 
         <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
           <p className="text-xs text-slate-400 font-medium">Phản hồi</p>
-          <p className="text-2xl font-black text-yellow-400 mt-1">{feedbacks.length}</p>
+          <p className="text-2xl font-black text-yellow-400 mt-1">
+            {feedbacks.length}
+          </p>
         </div>
       </div>
 
@@ -302,10 +325,14 @@ export default function AdminPage() {
               </div>
               <div>
                 <h2 className="text-lg font-black text-white flex items-center gap-2">
-                  <span>CẢNH BÁO: CÓ {urgentPendingList.length} SỰ CỐ CẤP BÁCH CHỜ DUYỆT!</span>
+                  <span>
+                    CẢNH BÁO: CÓ {urgentPendingList.length} SỰ CỐ CẤP BÁCH CHỜ
+                    DUYỆT!
+                  </span>
                 </h2>
                 <p className="text-xs text-red-200 mt-0.5">
-                  Vui lòng bấm &quot;Duyệt ngay&quot; để ngay lập tức điều phối lực lượng chức năng đến hiện trường.
+                  Vui lòng bấm &quot;Duyệt ngay&quot; để ngay lập tức điều phối
+                  lực lượng chức năng đến hiện trường.
                 </p>
               </div>
             </div>
@@ -319,12 +346,16 @@ export default function AdminPage() {
               >
                 <div>
                   <div className="flex items-center justify-between text-[11px] font-mono text-red-400 mb-1">
-                    <span>#SC-{item.id} • {item.loaiSuCo}</span>
+                    <span>
+                      #SC-{item.id} • {item.loaiSuCo}
+                    </span>
                     <span className="px-2 py-0.5 rounded bg-red-600 text-white font-bold uppercase text-[9px]">
                       CẤP BÁCH
                     </span>
                   </div>
-                  <h4 className="font-bold text-white text-base">{item.tieuDe}</h4>
+                  <h4 className="font-bold text-white text-base">
+                    {item.tieuDe}
+                  </h4>
                   <p className="text-xs text-slate-300 mt-1 line-clamp-2">
                     {item.moTaChiTiet || "Không có mô tả chi tiết."}
                   </p>
@@ -458,13 +489,19 @@ export default function AdminPage() {
                 <tbody className="divide-y divide-slate-800/60 text-slate-300">
                   {filteredIncidents.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-slate-500">
+                      <td
+                        colSpan={6}
+                        className="p-8 text-center text-slate-500"
+                      >
                         Không tìm thấy sự cố nào phù hợp bộ lọc.
                       </td>
                     </tr>
                   ) : (
                     filteredIncidents.map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-800/40 transition">
+                      <tr
+                        key={item.id}
+                        className="hover:bg-slate-800/40 transition"
+                      >
                         <td className="p-4 max-w-xs">
                           <p className="font-mono text-[10px] text-slate-500">
                             #SC-{item.id} • {item.loaiSuCo}
@@ -496,14 +533,19 @@ export default function AdminPage() {
                         </td>
 
                         <td className="p-4 max-w-xs">
-                          <p className="text-slate-300 line-clamp-2">{item.diaChi}</p>
+                          <p className="text-slate-300 line-clamp-2">
+                            {item.diaChi}
+                          </p>
                           <a
                             href={`https://www.openstreetmap.org/?mlat=${item.latitude}&mlon=${item.longitude}#map=16/${item.latitude}/${item.longitude}`}
                             target="_blank"
                             rel="noreferrer"
                             className="text-[10px] text-cyan-400 hover:underline font-mono mt-1 inline-flex items-center gap-1"
                           >
-                            <span>{Number(item.latitude).toFixed(4)}, {Number(item.longitude).toFixed(4)}</span>
+                            <span>
+                              {Number(item.latitude).toFixed(4)},{" "}
+                              {Number(item.longitude).toFixed(4)}
+                            </span>
                             <ExternalLink size={9} />
                           </a>
                         </td>
@@ -523,7 +565,9 @@ export default function AdminPage() {
                               />
                             </a>
                           ) : (
-                            <span className="text-[10px] text-slate-500">Không có</span>
+                            <span className="text-[10px] text-slate-500">
+                              Không có
+                            </span>
                           )}
                         </td>
 
@@ -531,14 +575,18 @@ export default function AdminPage() {
                           <select
                             value={item.trangThai || "Cho xu ly"}
                             onChange={(e) =>
-                              item.id && handleUpdateStatus(item.id, e.target.value)
+                              item.id &&
+                              handleUpdateStatus(
+                                item.id,
+                                e.target.value as IncidentStatus,
+                              )
                             }
                             className={`text-xs font-bold rounded-lg px-2.5 py-1.5 border outline-none cursor-pointer ${
                               item.trangThai === "Dang xu ly"
                                 ? "bg-cyan-950/80 text-cyan-300 border-cyan-700"
                                 : item.trangThai === "Da xu ly"
-                                ? "bg-emerald-950/80 text-emerald-300 border-emerald-700"
-                                : "bg-amber-950/80 text-amber-300 border-amber-700"
+                                  ? "bg-emerald-950/80 text-emerald-300 border-emerald-700"
+                                  : "bg-amber-950/80 text-amber-300 border-amber-700"
                             }`}
                           >
                             <option value="Cho xu ly">Chờ xử lý</option>
@@ -552,7 +600,9 @@ export default function AdminPage() {
                             {/* Duyệt ngay button if not yet in progress */}
                             {item.trangThai === "Cho xu ly" && (
                               <button
-                                onClick={() => item.id && handleApproveUrgent(item.id)}
+                                onClick={() =>
+                                  item.id && handleApproveUrgent(item.id)
+                                }
                                 title="Duyệt ngay sự cố này"
                                 className="p-1.5 rounded-lg bg-red-600/30 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 text-xs font-bold transition flex items-center gap-1"
                               >
@@ -562,7 +612,9 @@ export default function AdminPage() {
                             )}
 
                             <button
-                              onClick={() => item.id && handleDeleteIncident(item.id)}
+                              onClick={() =>
+                                item.id && handleDeleteIncident(item.id)
+                              }
                               title="Xóa sự cố"
                               className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-600 text-slate-400 hover:text-white transition"
                             >
@@ -604,7 +656,10 @@ export default function AdminPage() {
                   </tr>
                 ) : (
                   feedbacks.map((fb) => (
-                    <tr key={fb.id} className="hover:bg-slate-800/40 transition">
+                    <tr
+                      key={fb.id}
+                      className="hover:bg-slate-800/40 transition"
+                    >
                       <td className="p-4 font-mono text-slate-500">#{fb.id}</td>
                       <td className="p-4 font-bold text-white">{fb.hovaten}</td>
                       <td className="p-4 text-slate-300">{fb.email}</td>

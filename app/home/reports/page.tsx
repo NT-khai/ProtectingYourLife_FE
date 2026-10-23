@@ -18,7 +18,12 @@ import {
   Flame,
 } from "lucide-react";
 import IncidentLocationPicker from "@/app/components/reports/IncidentLocationPicker";
-import { incidentApi, uploadImage, IncidentData } from "@/app/lib/api";
+import {
+  incidentApi,
+  uploadImage,
+  IncidentData,
+  IncidentSeverity,
+} from "@/app/lib/api";
 import { useAuth } from "@/app/context/AuthContext";
 
 export default function ReportsPage() {
@@ -39,7 +44,7 @@ export default function ReportsPage() {
   // Form State matching Database
   const [formData, setFormData] = useState({
     loaiSuCo: "Hỏa hoạn / Khói lạ",
-    mucDo: "Cap bach", // Default to Cap bach as highlighted requirement
+    mucDo: "Cap bach" as IncidentSeverity, // Mặc định Cấp bách
     tieuDe: "",
     diaChi: "Khu vực P. Bến Nghé, Quận 1, TP. Hồ Chí Minh",
     coordinates: { lat: 10.7769, lng: 106.7009 } as {
@@ -214,7 +219,8 @@ export default function ReportsPage() {
           Báo Cáo Sự Cố An Toàn
         </h1>
         <p className="text-slate-300 text-sm mt-1">
-          Gửi thông tin sự cố an toàn kèm tọa độ GPS chính xác từ thiết bị và ảnh chụp hiện trường để lực lượng cứu nạn tiếp cận nhanh nhất.
+          Gửi thông tin sự cố an toàn kèm tọa độ GPS chính xác từ thiết bị và
+          ảnh chụp hiện trường để lực lượng cứu nạn tiếp cận nhanh nhất.
         </p>
       </div>
 
@@ -253,12 +259,24 @@ export default function ReportsPage() {
                 }
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:border-red-500 outline-none"
               >
-                <option value="Hỏa hoạn / Khói lạ">Hỏa hoạn / Cháy nổ / Khói lạ</option>
-                <option value="Ngập lụt / Triều cường">Ngập lụt sâu / Triều cường dâng</option>
-                <option value="Cây xanh gãy đổ / Sạt lở">Cây gãy đổ / Sạt lở / Sụp công trình</option>
-                <option value="Rò rỉ điện / Đứt cáp">Rò rỉ điện / Đứt dây cáp / Rò rỉ khí gas</option>
-                <option value="Tai nạn giao thông">Tai nạn giao thông nghiêm trọng</option>
-                <option value="Mối nguy hiểm khác">Mối nguy hiểm an toàn khác</option>
+                <option value="Hỏa hoạn / Khói lạ">
+                  Hỏa hoạn / Cháy nổ / Khói lạ
+                </option>
+                <option value="Ngập lụt / Triều cường">
+                  Ngập lụt sâu / Triều cường dâng
+                </option>
+                <option value="Cây xanh gãy đổ / Sạt lở">
+                  Cây gãy đổ / Sạt lở / Sụp công trình
+                </option>
+                <option value="Rò rỉ điện / Đứt cáp">
+                  Rò rỉ điện / Đứt dây cáp / Rò rỉ khí gas
+                </option>
+                <option value="Tai nạn giao thông">
+                  Tai nạn giao thông nghiêm trọng
+                </option>
+                <option value="Mối nguy hiểm khác">
+                  Mối nguy hiểm an toàn khác
+                </option>
               </select>
             </div>
 
@@ -271,23 +289,31 @@ export default function ReportsPage() {
                   {
                     id: "Cap bach",
                     label: "Cấp bách",
-                    activeClass: "bg-red-600 text-white border-red-500 shadow-md",
+                    activeClass:
+                      "bg-red-600 text-white border-red-500 shadow-md",
                   },
                   {
                     id: "Trung binh",
                     label: "Trung bình",
-                    activeClass: "bg-amber-600 text-white border-amber-500 shadow-md",
+                    activeClass:
+                      "bg-amber-600 text-white border-amber-500 shadow-md",
                   },
                   {
                     id: "Thap",
                     label: "Thấp",
-                    activeClass: "bg-blue-600 text-white border-blue-500 shadow-md",
+                    activeClass:
+                      "bg-blue-600 text-white border-blue-500 shadow-md",
                   },
                 ].map((s) => (
                   <button
                     key={s.id}
                     type="button"
-                    onClick={() => setFormData({ ...formData, mucDo: s.id })}
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        mucDo: s.id as IncidentSeverity,
+                      })
+                    }
                     className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition ${
                       formData.mucDo === s.id
                         ? s.activeClass
@@ -302,9 +328,14 @@ export default function ReportsPage() {
               {/* Special Urgent Approval Banner */}
               {formData.mucDo === "Cap bach" && (
                 <div className="mt-2.5 p-2.5 rounded-xl bg-red-950/60 border border-red-600/40 text-red-300 text-[11px] flex items-center gap-2">
-                  <Zap size={14} className="text-yellow-400 shrink-0 animate-pulse" />
+                  <Zap
+                    size={14}
+                    className="text-yellow-400 shrink-0 animate-pulse"
+                  />
                   <span>
-                    <strong>Cơ chế khẩn cấp:</strong> Sự cố cấp bách sẽ được hệ thống <strong>tự động duyệt ngay</strong> và kích hoạt cảnh báo cứu trợ!
+                    <strong>Cơ chế khẩn cấp:</strong> Sự cố cấp bách sẽ được hệ
+                    thống <strong>tự động duyệt ngay</strong> và kích hoạt cảnh
+                    báo cứu trợ!
                   </span>
                 </div>
               )}
@@ -400,12 +431,20 @@ export default function ReportsPage() {
                   />
                   {uploadingImage ? (
                     <div className="flex flex-col items-center justify-center py-2">
-                      <Loader2 size={22} className="animate-spin text-red-500 mb-1" />
-                      <p className="text-xs text-slate-300">Đang tải ảnh lên máy chủ...</p>
+                      <Loader2
+                        size={22}
+                        className="animate-spin text-red-500 mb-1"
+                      />
+                      <p className="text-xs text-slate-300">
+                        Đang tải ảnh lên máy chủ...
+                      </p>
                     </div>
                   ) : (
                     <>
-                      <Camera size={20} className="mx-auto text-slate-400 mb-1" />
+                      <Camera
+                        size={20}
+                        className="mx-auto text-slate-400 mb-1"
+                      />
                       <p className="text-xs text-slate-300 font-medium">
                         Bấm để chụp hoặc chọn ảnh hiện trường
                       </p>
@@ -473,8 +512,13 @@ export default function ReportsPage() {
 
           {loading ? (
             <div className="p-12 text-center bg-slate-950/60 rounded-2xl border border-slate-800">
-              <Loader2 size={28} className="animate-spin text-red-500 mx-auto mb-2" />
-              <p className="text-sm text-slate-400">Đang tải danh sách sự cố...</p>
+              <Loader2
+                size={28}
+                className="animate-spin text-red-500 mx-auto mb-2"
+              />
+              <p className="text-sm text-slate-400">
+                Đang tải danh sách sự cố...
+              </p>
             </div>
           ) : filteredReports.length === 0 ? (
             <div className="p-12 text-center bg-slate-950/60 rounded-2xl border border-slate-800 text-slate-400">
